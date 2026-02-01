@@ -8,6 +8,7 @@ import (
 
 	"github.com/Dorico-Dynamics/txova-go-core/errors"
 	"github.com/Dorico-Dynamics/txova-go-core/logging"
+	"github.com/Dorico-Dynamics/txova-go-security/audit"
 
 	middleware "github.com/Dorico-Dynamics/txova-go-middleware"
 )
@@ -19,6 +20,10 @@ type Config struct {
 
 	// Logger for logging authentication events (optional).
 	Logger *logging.Logger
+
+	// AuditLogger for security audit logging (optional).
+	// Uses txova-go-security/audit for PII-masked security event logging.
+	AuditLogger *audit.Logger
 
 	// ExcludePaths are paths that bypass authentication.
 	ExcludePaths []string
@@ -34,6 +39,14 @@ type Option func(*Config)
 func WithLogger(logger *logging.Logger) Option {
 	return func(c *Config) {
 		c.Logger = logger
+	}
+}
+
+// WithAuditLogger sets the security audit logger for authentication events.
+// The audit logger automatically masks PII in log output.
+func WithAuditLogger(auditLogger *audit.Logger) Option {
+	return func(c *Config) {
+		c.AuditLogger = auditLogger
 	}
 }
 
@@ -87,7 +100,7 @@ func Middleware(validator *Validator, opts ...Option) func(http.Handler) http.Ha
 			// Extract token from Authorization header.
 			tokenString, err := extractBearerToken(r)
 			if err != nil {
-				logAuthFailure(cfg.Logger, r, "missing or invalid authorization header")
+				logAuthFailure(cfg.Logger, cfg.AuditLogger, r, "missing or invalid authorization header")
 				writeError(w, err)
 				return
 			}
@@ -95,7 +108,7 @@ func Middleware(validator *Validator, opts ...Option) func(http.Handler) http.Ha
 			// Validate the token.
 			claims, validateErr := cfg.Validator.Validate(tokenString)
 			if validateErr != nil {
-				logAuthFailure(cfg.Logger, r, validateErr.Error())
+				logAuthFailure(cfg.Logger, cfg.AuditLogger, r, validateErr.Error())
 				writeError(w, validateErr)
 				return
 			}
@@ -176,19 +189,26 @@ func writeError(w http.ResponseWriter, appErr error) {
 }
 
 // logAuthFailure logs an authentication failure.
-func logAuthFailure(logger *logging.Logger, r *http.Request, reason string) {
-	if logger == nil {
-		return
+func logAuthFailure(logger *logging.Logger, auditLogger *audit.Logger, r *http.Request, reason string) {
+	ip := getClientIP(r)
+	userAgent := r.UserAgent()
+
+	// Log to standard logger if available.
+	if logger != nil {
+		requestID := middleware.RequestIDFromContext(r.Context())
+		logger.Warn("authentication failed",
+			"reason", reason,
+			"path", r.URL.Path,
+			"method", r.Method,
+			"ip", ip,
+			"request_id", requestID,
+		)
 	}
 
-	requestID := middleware.RequestIDFromContext(r.Context())
-	logger.Warn("authentication failed",
-		"reason", reason,
-		"path", r.URL.Path,
-		"method", r.Method,
-		"ip", getClientIP(r),
-		"request_id", requestID,
-	)
+	// Log to audit logger if available (with automatic PII masking).
+	if auditLogger != nil {
+		auditLogger.LogLoginFailed(r.Context(), "", ip, userAgent, reason)
+	}
 }
 
 // getClientIP extracts the client IP address from the request.

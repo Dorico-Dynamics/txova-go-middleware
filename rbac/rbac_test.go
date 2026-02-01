@@ -381,11 +381,12 @@ func TestRequireRoleWithOptions_WithLogger(t *testing.T) {
 	}
 }
 
-func TestLogAccessDenial_NilLogger(t *testing.T) {
+func TestLogAccessDenial_NilLoggers(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/test", http.NoBody)
 
-	// Should not panic with nil logger.
-	logAccessDenial(nil, req, "test reason")
+	// Should not panic with nil loggers in config.
+	cfg := &Config{}
+	logAccessDenial(cfg, req, "test reason")
 }
 
 func TestLogAccessDenial_WithRequestID(t *testing.T) {
@@ -393,8 +394,9 @@ func TestLogAccessDenial_WithRequestID(t *testing.T) {
 	ctx := middleware.WithRequestID(context.Background(), "req-123")
 	req = req.WithContext(ctx)
 
-	// Should not panic.
-	logAccessDenial(nil, req, "test reason")
+	// Should not panic with nil loggers.
+	cfg := &Config{}
+	logAccessDenial(cfg, req, "test reason")
 }
 
 func TestWriteError_ContentType(t *testing.T) {

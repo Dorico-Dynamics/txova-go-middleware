@@ -4,11 +4,13 @@ package rbac
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Dorico-Dynamics/txova-go-core/errors"
 	"github.com/Dorico-Dynamics/txova-go-core/logging"
+	"github.com/Dorico-Dynamics/txova-go-security/audit"
 
 	middleware "github.com/Dorico-Dynamics/txova-go-middleware"
 	"github.com/Dorico-Dynamics/txova-go-middleware/auth"
@@ -18,6 +20,10 @@ import (
 type Config struct {
 	// Logger for logging access denial events (optional).
 	Logger *logging.Logger
+
+	// AuditLogger for security audit logging (optional).
+	// Uses txova-go-security/audit for PII-masked security event logging.
+	AuditLogger *audit.Logger
 }
 
 // Option is a functional option for configuring RBAC middleware.
@@ -27,6 +33,14 @@ type Option func(*Config)
 func WithLogger(logger *logging.Logger) Option {
 	return func(c *Config) {
 		c.Logger = logger
+	}
+}
+
+// WithAuditLogger sets the security audit logger for access denial events.
+// The audit logger automatically masks PII in log output.
+func WithAuditLogger(auditLogger *audit.Logger) Option {
+	return func(c *Config) {
+		c.AuditLogger = auditLogger
 	}
 }
 
@@ -55,7 +69,7 @@ func RequireRoleWithOptions(roles []string, opts ...Option) func(http.Handler) h
 			}
 
 			if !claims.HasAnyRole(roles...) {
-				logAccessDenial(cfg.Logger, r, "missing required role")
+				logAccessDenial(&cfg, r, "missing required role")
 				writeError(w, errors.Forbidden("insufficient permissions"))
 				return
 			}
@@ -90,7 +104,7 @@ func RequirePermissionWithOptions(permissions []string, opts ...Option) func(htt
 			}
 
 			if !claims.HasAllPermissions(permissions...) {
-				logAccessDenial(cfg.Logger, r, "missing required permission")
+				logAccessDenial(&cfg, r, "missing required permission")
 				writeError(w, errors.Forbidden("insufficient permissions"))
 				return
 			}
@@ -130,7 +144,7 @@ func RequireUserTypeWithOptions(types []string, opts ...Option) func(http.Handle
 			}
 
 			if !typeSet[claims.UserType] {
-				logAccessDenial(cfg.Logger, r, "invalid user type")
+				logAccessDenial(&cfg, r, "invalid user type")
 				writeError(w, errors.Forbidden("access denied for user type"))
 				return
 			}
@@ -172,7 +186,7 @@ func RequireOwnerWithOptions(paramName string, opts ...Option) func(http.Handler
 			}
 
 			if claims.UserID != ownerID {
-				logAccessDenial(cfg.Logger, r, "not resource owner")
+				logAccessDenial(&cfg, r, "not resource owner")
 				writeError(w, errors.Forbidden("access denied: not resource owner"))
 				return
 			}
@@ -220,7 +234,7 @@ func RequireRoleOrOwnerWithOptions(paramName string, roles []string, opts ...Opt
 				return
 			}
 
-			logAccessDenial(cfg.Logger, r, "neither role nor owner")
+			logAccessDenial(&cfg, r, "neither role nor owner")
 			writeError(w, errors.Forbidden("access denied"))
 		})
 	}
@@ -238,19 +252,40 @@ func writeError(w http.ResponseWriter, appErr *errors.AppError) {
 }
 
 // logAccessDenial logs an access denial event.
-func logAccessDenial(logger *logging.Logger, r *http.Request, reason string) {
-	if logger == nil {
-		return
-	}
-
+func logAccessDenial(cfg *Config, r *http.Request, reason string) {
 	userID, _ := middleware.UserIDFromContext(r.Context())
 	requestID := middleware.RequestIDFromContext(r.Context())
+	ip := getClientIP(r)
 
-	logger.Warn("access denied",
-		"reason", reason,
-		"path", r.URL.Path,
-		"method", r.Method,
-		"user_id", userID,
-		"request_id", requestID,
-	)
+	// Log to standard logger if available.
+	if cfg.Logger != nil {
+		cfg.Logger.Warn("access denied",
+			"reason", reason,
+			"path", r.URL.Path,
+			"method", r.Method,
+			"user_id", userID,
+			"request_id", requestID,
+		)
+	}
+
+	// Log to audit logger if available (with automatic PII masking).
+	if cfg.AuditLogger != nil {
+		cfg.AuditLogger.LogPermissionDenied(r.Context(), userID, r.URL.Path, r.Method, ip)
+	}
+}
+
+// getClientIP extracts the client IP address from the request.
+func getClientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if idx := strings.Index(xff, ","); idx > 0 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+
+	return r.RemoteAddr
 }

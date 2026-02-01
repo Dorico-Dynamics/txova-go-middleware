@@ -10,4 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 )
 
-require github.com/Dorico-Dynamics/txova-go-types v1.0.1 // indirect
+require (
+	github.com/Dorico-Dynamics/txova-go-security v0.1.1 // indirect
+	github.com/Dorico-Dynamics/txova-go-types v1.0.1 // indirect
+)

@@ -593,8 +593,8 @@ func TestGetClientIP(t *testing.T) {
 func TestLogAuthFailure_NilLogger(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/test", http.NoBody)
 
-	// Should not panic with nil logger.
-	logAuthFailure(nil, req, "test reason")
+	// Should not panic with nil loggers.
+	logAuthFailure(nil, nil, req, "test reason")
 }
 
 func TestLogAuthFailure_WithRequestID(t *testing.T) {
@@ -603,7 +603,7 @@ func TestLogAuthFailure_WithRequestID(t *testing.T) {
 	req = req.WithContext(ctx)
 
 	// Should not panic and should include request ID.
-	logAuthFailure(nil, req, "test reason")
+	logAuthFailure(nil, nil, req, "test reason")
 }
 
 func TestMiddleware_PreservesRequestContext(t *testing.T) {
