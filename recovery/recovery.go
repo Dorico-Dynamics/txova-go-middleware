@@ -126,6 +126,10 @@ func handlePanic(rec any, r *http.Request, w http.ResponseWriter, rw *recoveryWr
 
 // logPanic logs the panic with appropriate context.
 func logPanic(logger *logging.Logger, r *http.Request, rec any, stack []byte, requestID, userID string, rw *recoveryWriter, printStack bool) {
+	if logger == nil {
+		return
+	}
+
 	logCtx := logger.WithContext(r.Context())
 	args := []any{
 		"panic", rec,

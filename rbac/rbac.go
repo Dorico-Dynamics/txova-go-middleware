@@ -247,8 +247,14 @@ func writeError(w http.ResponseWriter, appErr *errors.AppError) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
 	w.WriteHeader(appErr.HTTPStatus())
+
+	// Attempt to write JSON response. If encoding fails, write plain text fallback.
+	// Do not call http.Error as it would invoke WriteHeader again.
 	if err := json.NewEncoder(w).Encode(appErr.ToResponse()); err != nil {
-		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		// WriteHeader already called, just write body. Ignore write error as
+		// there's nothing we can do if writing the fallback also fails.
+		//nolint:errcheck // Intentional - fallback write, nothing to do on error
+		_, _ = w.Write([]byte(http.StatusText(appErr.HTTPStatus())))
 	}
 }
 

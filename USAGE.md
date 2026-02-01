@@ -360,14 +360,14 @@ r.Use(ratelimit.Middleware(limiter,
 ```
 
 **Response headers:**
-```
+```http
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 95
 X-RateLimit-Reset: 1609459200
 ```
 
 **On limit exceeded (429 Too Many Requests):**
-```
+```http
 Retry-After: 45
 ```
 

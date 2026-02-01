@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -269,12 +270,24 @@ func Middleware(limiter *Limiter, opts ...Option) func(http.Handler) http.Handle
 func writeRateLimitError(w http.ResponseWriter, resetAt time.Time) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Retry-After", strconv.FormatInt(int64(time.Until(resetAt).Seconds()), 10))
+
+	// Compute Retry-After, ensuring it's never negative.
+	retrySec := int64(time.Until(resetAt).Seconds())
+	if retrySec < 0 {
+		retrySec = 0
+	}
+	w.Header().Set("Retry-After", strconv.FormatInt(retrySec, 10))
 
 	err := errors.RateLimited("rate limit exceeded")
 	w.WriteHeader(err.HTTPStatus())
+
+	// Attempt to write JSON response. If encoding fails, write plain text fallback.
+	// Do not call http.Error as it would invoke WriteHeader again.
 	if encodeErr := json.NewEncoder(w).Encode(err.ToResponse()); encodeErr != nil {
-		http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+		// WriteHeader already called, just write body. Ignore write error as
+		// there's nothing we can do if writing the fallback also fails.
+		//nolint:errcheck // Intentional - fallback write, nothing to do on error
+		_, _ = w.Write([]byte(http.StatusText(http.StatusTooManyRequests)))
 	}
 }
 
@@ -315,6 +328,7 @@ func KeyByUserAndEndpoint(r *http.Request) string {
 }
 
 // getClientIP extracts the client IP address from the request.
+// Handles both IPv4 and IPv6 addresses correctly.
 func getClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		if idx := strings.Index(xff, ","); idx > 0 {
@@ -327,11 +341,17 @@ func getClientIP(r *http.Request) string {
 		return strings.TrimSpace(xri)
 	}
 
-	// Remove port from RemoteAddr.
-	addr := r.RemoteAddr
-	if idx := strings.LastIndex(addr, ":"); idx > 0 {
-		return addr[:idx]
+	// Use net.SplitHostPort to properly handle IPv4 and IPv6 addresses.
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		// If SplitHostPort fails (e.g., no port), return the address as-is.
+		// Trim brackets from bare IPv6 addresses like "[::1]".
+		addr := r.RemoteAddr
+		if strings.HasPrefix(addr, "[") && strings.HasSuffix(addr, "]") {
+			return addr[1 : len(addr)-1]
+		}
+		return addr
 	}
 
-	return addr
+	return host
 }
