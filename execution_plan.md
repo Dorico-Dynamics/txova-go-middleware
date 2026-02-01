@@ -45,8 +45,8 @@ Implementation plan for the HTTP middleware library providing authentication, au
 
 | Phase | Status | Commit | Coverage |
 |-------|--------|--------|----------|
-| Phase 1: Foundation | Complete | - | 100% |
-| Phase 2: Request ID & Recovery | Pending | - | - |
+| Phase 1: Foundation | Complete | `e36d9c5` | 100% |
+| Phase 2: Request ID & Recovery | Complete | - | 98% |
 | Phase 3: Logging Middleware | Pending | - | - |
 | Phase 4: Timeout Middleware | Pending | - | - |
 | Phase 5: CORS Middleware | Pending | - | - |
@@ -107,36 +107,36 @@ Implementation plan for the HTTP middleware library providing authentication, au
 ## Phase 2: Request ID & Recovery (`requestid`, `recovery` packages)
 
 ### 2.1 Request ID Middleware
-- [ ] Implement `Middleware() func(http.Handler) http.Handler`
-- [ ] Check for existing `X-Request-ID` header
-- [ ] If present, use existing ID (for distributed tracing)
-- [ ] If absent, generate new UUID v4
-- [ ] Inject request ID into context using `ContextKeyRequestID`
-- [ ] Add `X-Request-ID` to response headers
-- [ ] Implement `Config` struct with options:
+- [x] Implement `Middleware() func(http.Handler) http.Handler`
+- [x] Check for existing `X-Request-ID` header
+- [x] If present, use existing ID (for distributed tracing)
+- [x] If absent, generate new UUID v4
+- [x] Inject request ID into context using `ContextKeyRequestID`
+- [x] Add `X-Request-ID` to response headers
+- [x] Implement `Config` struct with options:
   - `HeaderName string` (default: "X-Request-ID")
   - `Generator func() string` (default: UUID v4)
 
 ### 2.2 Recovery Middleware
-- [ ] Implement `Middleware(logger *logging.Logger) func(http.Handler) http.Handler`
-- [ ] Wrap handler in defer/recover
-- [ ] On panic:
+- [x] Implement `Middleware(logger *logging.Logger) func(http.Handler) http.Handler`
+- [x] Wrap handler in defer/recover
+- [x] On panic:
   - Log full stack trace at ERROR level
   - Include request_id, method, path in log
   - Return 500 + INTERNAL_ERROR response
-- [ ] Never expose panic details to client
-- [ ] Implement `Config` struct with options:
+- [x] Never expose panic details to client
+- [x] Implement `Config` struct with options:
   - `StackSize int` (default: 4096)
   - `PrintStack bool` (default: true in dev)
 
 ### 2.3 Tests
-- [ ] Test request ID propagation (existing header)
-- [ ] Test request ID generation (no header)
-- [ ] Test request ID in response headers
-- [ ] Test custom header name
-- [ ] Test panic recovery returns 500
-- [ ] Test panic logging includes stack trace
-- [ ] Test panic details not exposed to client
+- [x] Test request ID propagation (existing header)
+- [x] Test request ID generation (no header)
+- [x] Test request ID in response headers
+- [x] Test custom header name
+- [x] Test panic recovery returns 500
+- [x] Test panic logging includes stack trace
+- [x] Test panic details not exposed to client
 
 ---
 

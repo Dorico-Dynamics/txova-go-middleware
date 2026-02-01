@@ -1,12 +1,6 @@
 github.com/Dorico-Dynamics/txova-go-core v1.0.0 h1:xPyNhHKu3zIUQ9R4b9flzd251gJn32vs1HX/Vzttf6M=
 github.com/Dorico-Dynamics/txova-go-core v1.0.0/go.mod h1:Rwqq+wnlM+AETcwuhqKGHJOh8ljJ8GOG2hTvWgPUQTM=
-github.com/Dorico-Dynamics/txova-go-security v0.1.1 h1:sqCNSXvzJQxwdyPYnDdOVeHRc8Dx8umC1SAgTP5ywU8=
-github.com/Dorico-Dynamics/txova-go-security v0.1.1/go.mod h1:JZXwO9MreyYslPz5vbqMIkej2j+FdXlN6vri3CiHtwY=
-github.com/go-chi/chi/v5 v5.2.4 h1:WtFKPHwlywe8Srng8j2BhOD9312j9cGUxG1SP4V2cR4=
-github.com/go-chi/chi/v5 v5.2.4/go.mod h1:X7Gx4mteadT3eDOMTsXzmI4/rwUpOwBHLpAfupzFJP0=
-github.com/go-chi/cors v1.2.2 h1:Jmey33TE+b+rB7fT8MUy1u0I4L+NARQlK6LhzKPSyQE=
-github.com/go-chi/cors v1.2.2/go.mod h1:sSbTewc+6wYHBBCW7ytsFSn836hqM7JxpglAy2Vzc58=
-github.com/golang-jwt/jwt/v5 v5.3.1 h1:kYf81DTWFe7t+1VvL7eS+jKFVWaUnK9cB1qbwn63YCY=
-github.com/golang-jwt/jwt/v5 v5.3.1/go.mod h1:fxCRLWMO43lRc8nhHWY6LGqRcf+1gQWArsqaEUEa5bE=
+github.com/Dorico-Dynamics/txova-go-types v1.0.1 h1:bndgmVRQEuCma3A/35GEyc2lVNvnvecw3hdj191ZG4c=
+github.com/Dorico-Dynamics/txova-go-types v1.0.1/go.mod h1:WkWIOXLkVwFu1wyLGm9U2R2dTECuTtEJTR8rIiA+dBw=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
