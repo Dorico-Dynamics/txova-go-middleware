@@ -4,12 +4,12 @@ package maintenance
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/Dorico-Dynamics/txova-go-core/errors"
+
+	middleware "github.com/Dorico-Dynamics/txova-go-middleware"
 )
 
 // FlagStore defines the interface for checking maintenance mode status.
@@ -104,7 +104,7 @@ func Middleware(store FlagStore, opts ...Option) func(http.Handler) http.Handler
 			}
 
 			// Check bypass IPs.
-			clientIP := getClientIP(r)
+			clientIP := middleware.GetClientIP(r)
 			if bypassIPs[clientIP] {
 				next.ServeHTTP(w, r)
 				return
@@ -158,34 +158,4 @@ func writeMaintenanceResponse(w http.ResponseWriter, message string, endTime *ti
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 	}
-}
-
-// getClientIP extracts the client IP address from the request.
-// Handles both IPv4 and IPv6 addresses correctly.
-func getClientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if idx := strings.Index(xff, ","); idx > 0 {
-			return strings.TrimSpace(xff[:idx])
-		}
-		return strings.TrimSpace(xff)
-	}
-
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
-	}
-
-	// Use net.SplitHostPort to properly handle IPv4 and IPv6 addresses.
-	// IPv6 addresses with ports are in the form "[::1]:8080".
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		// If SplitHostPort fails (e.g., no port), return the address as-is.
-		// Trim brackets from bare IPv6 addresses like "[::1]".
-		addr := r.RemoteAddr
-		if strings.HasPrefix(addr, "[") && strings.HasSuffix(addr, "]") {
-			return addr[1 : len(addr)-1]
-		}
-		return addr
-	}
-
-	return host
 }

@@ -3,9 +3,7 @@ package rbac
 
 import (
 	"encoding/json"
-	"net"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -262,7 +260,7 @@ func writeError(w http.ResponseWriter, appErr *errors.AppError) {
 func logAccessDenial(cfg *Config, r *http.Request, reason string) {
 	userID, _ := middleware.UserIDFromContext(r.Context())
 	requestID := middleware.RequestIDFromContext(r.Context())
-	ip := getClientIP(r)
+	ip := middleware.GetClientIP(r)
 
 	// Log to standard logger if available.
 	if cfg.Logger != nil {
@@ -279,33 +277,4 @@ func logAccessDenial(cfg *Config, r *http.Request, reason string) {
 	if cfg.AuditLogger != nil {
 		cfg.AuditLogger.LogPermissionDenied(r.Context(), userID, r.URL.Path, r.Method, ip)
 	}
-}
-
-// getClientIP extracts the client IP address from the request.
-// Handles both IPv4 and IPv6 addresses correctly.
-func getClientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if idx := strings.Index(xff, ","); idx > 0 {
-			return strings.TrimSpace(xff[:idx])
-		}
-		return strings.TrimSpace(xff)
-	}
-
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
-	}
-
-	// Use net.SplitHostPort to properly handle IPv4 and IPv6 addresses.
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		// If SplitHostPort fails (e.g., no port), return the address as-is.
-		// Trim brackets from bare IPv6 addresses like "[::1]".
-		addr := r.RemoteAddr
-		if strings.HasPrefix(addr, "[") && strings.HasSuffix(addr, "]") {
-			return addr[1 : len(addr)-1]
-		}
-		return addr
-	}
-
-	return host
 }
