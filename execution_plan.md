@@ -47,8 +47,8 @@ Implementation plan for the HTTP middleware library providing authentication, au
 |-------|--------|--------|----------|
 | Phase 1: Foundation | Complete | `e36d9c5` | 100% |
 | Phase 2: Request ID & Recovery | Complete | `9e61504` | 98% |
-| Phase 3: Logging Middleware | Complete | - | 89% |
-| Phase 4: Timeout Middleware | Pending | - | - |
+| Phase 3: Logging Middleware | Complete | `eea6aab` | 89% |
+| Phase 4: Timeout Middleware | Complete | - | 98% |
 | Phase 5: CORS Middleware | Pending | - | - |
 | Phase 6: Authentication Middleware | Pending | - | - |
 | Phase 7: RBAC Middleware | Pending | - | - |
@@ -191,28 +191,28 @@ Implementation plan for the HTTP middleware library providing authentication, au
 ## Phase 4: Timeout Middleware (`timeout` package)
 
 ### 4.1 Request Timeout
-- [ ] Implement `Middleware(timeout time.Duration) func(http.Handler) http.Handler`
-- [ ] Create context with timeout
-- [ ] Cancel context when timeout exceeded
-- [ ] Return 503 + REQUEST_TIMEOUT on timeout
+- [x] Implement `Middleware(timeout time.Duration) func(http.Handler) http.Handler`
+- [x] Create context with timeout
+- [x] Cancel context when timeout exceeded
+- [x] Return 503 + REQUEST_TIMEOUT on timeout
 
 ### 4.2 Configuration
-- [ ] Implement `Config` struct:
+- [x] Implement `Config` struct:
   - `Timeout time.Duration` (default: 30s)
   - `SkipPaths []string` - Paths to skip (file uploads)
-- [ ] Functional options: `WithTimeout()`, `WithSkipPaths()`
+- [x] Functional options: `WithTimeout()`, `WithSkipPaths()`
 
 ### 4.3 Timeout Handling
-- [ ] Check `ctx.Done()` channel for cancellation
-- [ ] Allow handler to detect cancellation via `ctx.Err()`
-- [ ] Write timeout response only if handler hasn't written yet
+- [x] Check `ctx.Done()` channel for cancellation
+- [x] Allow handler to detect cancellation via `ctx.Err()`
+- [x] Write timeout response only if handler hasn't written yet
 
 ### 4.4 Tests
-- [ ] Test normal request completes within timeout
-- [ ] Test timeout triggers 503 response
-- [ ] Test context cancellation is propagated
-- [ ] Test skip paths bypass timeout
-- [ ] Test partial response handling (already written)
+- [x] Test normal request completes within timeout
+- [x] Test timeout triggers 503 response
+- [x] Test context cancellation is propagated
+- [x] Test skip paths bypass timeout
+- [x] Test partial response handling (already written)
 
 ---
 
