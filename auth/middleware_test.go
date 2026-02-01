@@ -567,10 +567,28 @@ func TestGetClientIP(t *testing.T) {
 			want:       "192.168.1.1",
 		},
 		{
-			name:       "fallback to RemoteAddr",
+			name:       "fallback to RemoteAddr strips port",
 			headers:    map[string]string{},
 			remoteAddr: "10.0.0.1:1234",
-			want:       "10.0.0.1:1234",
+			want:       "10.0.0.1",
+		},
+		{
+			name:       "IPv6 with port",
+			headers:    map[string]string{},
+			remoteAddr: "[::1]:8080",
+			want:       "::1",
+		},
+		{
+			name:       "IPv6 without port",
+			headers:    map[string]string{},
+			remoteAddr: "::1",
+			want:       "::1",
+		},
+		{
+			name:       "IPv6 full address with port",
+			headers:    map[string]string{},
+			remoteAddr: "[2001:db8::1]:8080",
+			want:       "2001:db8::1",
 		},
 	}
 

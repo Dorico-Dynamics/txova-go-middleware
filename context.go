@@ -29,7 +29,11 @@ func UserIDFromContext(ctx context.Context) (string, bool) {
 }
 
 // WithUserID returns a new context with the user ID set.
+// If ctx is nil, context.Background() is used.
 func WithUserID(ctx context.Context, userID string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return context.WithValue(ctx, contextKeyUserID, userID)
 }
 
@@ -44,7 +48,11 @@ func UserTypeFromContext(ctx context.Context) (string, bool) {
 }
 
 // WithUserType returns a new context with the user type set.
+// If ctx is nil, context.Background() is used.
 func WithUserType(ctx context.Context, userType string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return context.WithValue(ctx, contextKeyUserType, userType)
 }
 
@@ -59,8 +67,16 @@ func RolesFromContext(ctx context.Context) ([]string, bool) {
 }
 
 // WithRoles returns a new context with the roles set.
+// If ctx is nil, context.Background() is used.
+// A defensive copy of the roles slice is stored to prevent external mutation.
 func WithRoles(ctx context.Context, roles []string) context.Context {
-	return context.WithValue(ctx, contextKeyRoles, roles)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	// Make a defensive copy to prevent external mutation.
+	rolesCopy := make([]string, len(roles))
+	copy(rolesCopy, roles)
+	return context.WithValue(ctx, contextKeyRoles, rolesCopy)
 }
 
 // RequestIDFromContext extracts the request ID from the context.
@@ -77,6 +93,10 @@ func RequestIDFromContext(ctx context.Context) string {
 }
 
 // WithRequestID returns a new context with the request ID set.
+// If ctx is nil, context.Background() is used.
 func WithRequestID(ctx context.Context, requestID string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return context.WithValue(ctx, contextKeyRequestID, requestID)
 }

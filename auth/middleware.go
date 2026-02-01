@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -66,6 +67,7 @@ func WithExcludePatterns(patterns ...string) Option {
 
 // Middleware returns an HTTP middleware that enforces JWT authentication.
 // Requests without a valid token receive a 401 Unauthorized response.
+// If validator is nil, returns a middleware that responds with HTTP 500 for all requests.
 func Middleware(validator *Validator, opts ...Option) func(http.Handler) http.Handler {
 	cfg := Config{
 		Validator: validator,
@@ -73,6 +75,18 @@ func Middleware(validator *Validator, opts ...Option) func(http.Handler) http.Ha
 
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+
+	// Guard against nil validator.
+	if cfg.Validator == nil {
+		if cfg.Logger != nil {
+			cfg.Logger.Error("auth middleware initialized with nil validator")
+		}
+		return func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				writeError(w, errors.InternalError("authentication service unavailable"))
+			})
+		}
 	}
 
 	// Build exclude path set.
@@ -84,9 +98,17 @@ func Middleware(validator *Validator, opts ...Option) func(http.Handler) http.Ha
 	// Compile exclude patterns.
 	var excludePatterns []*regexp.Regexp
 	for _, pattern := range cfg.ExcludePatterns {
-		if re, err := regexp.Compile(pattern); err == nil {
-			excludePatterns = append(excludePatterns, re)
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			if cfg.Logger != nil {
+				cfg.Logger.Error("failed to compile exclude pattern",
+					"pattern", pattern,
+					"error", err.Error(),
+				)
+			}
+			continue
 		}
+		excludePatterns = append(excludePatterns, re)
 	}
 
 	return func(next http.Handler) http.Handler {
@@ -212,6 +234,7 @@ func logAuthFailure(logger *logging.Logger, auditLogger *audit.Logger, r *http.R
 }
 
 // getClientIP extracts the client IP address from the request.
+// Handles both IPv4 and IPv6 addresses correctly.
 func getClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		if idx := strings.Index(xff, ","); idx > 0 {
@@ -224,5 +247,17 @@ func getClientIP(r *http.Request) string {
 		return strings.TrimSpace(xri)
 	}
 
-	return r.RemoteAddr
+	// Use net.SplitHostPort to properly handle IPv4 and IPv6 addresses.
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		// If SplitHostPort fails (e.g., no port), return the address as-is.
+		// Trim brackets from bare IPv6 addresses like "[::1]".
+		addr := r.RemoteAddr
+		if strings.HasPrefix(addr, "[") && strings.HasSuffix(addr, "]") {
+			return addr[1 : len(addr)-1]
+		}
+		return addr
+	}
+
+	return host
 }

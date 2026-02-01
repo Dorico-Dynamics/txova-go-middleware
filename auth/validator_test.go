@@ -442,6 +442,86 @@ func TestValidator_Validate_WithAudience(t *testing.T) {
 	}
 }
 
+func TestValidator_Validate_WithMultipleConfiguredAudiences(t *testing.T) {
+	rsaKey := generateTestRSAKey(t)
+
+	// Configure validator with multiple acceptable audiences (any-of matching).
+	validator, err := NewValidator(ValidatorConfig{
+		PublicKey: &rsaKey.PublicKey,
+		Audience:  []string{"api", "web", "mobile"},
+	})
+	if err != nil {
+		t.Fatalf("NewValidator() error = %v", err)
+	}
+
+	tests := []struct {
+		name          string
+		tokenAudience []string
+		wantErr       bool
+	}{
+		{
+			name:          "token has first configured audience",
+			tokenAudience: []string{"api"},
+			wantErr:       false,
+		},
+		{
+			name:          "token has second configured audience",
+			tokenAudience: []string{"web"},
+			wantErr:       false,
+		},
+		{
+			name:          "token has third configured audience",
+			tokenAudience: []string{"mobile"},
+			wantErr:       false,
+		},
+		{
+			name:          "token has multiple audiences including one configured",
+			tokenAudience: []string{"other", "mobile", "extra"},
+			wantErr:       false,
+		},
+		{
+			name:          "token has all configured audiences",
+			tokenAudience: []string{"api", "web", "mobile"},
+			wantErr:       false,
+		},
+		{
+			name:          "token has none of the configured audiences",
+			tokenAudience: []string{"other", "unknown"},
+			wantErr:       true,
+		},
+		{
+			name:          "token has empty audience",
+			tokenAudience: nil,
+			wantErr:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			claims := &Claims{
+				RegisteredClaims: jwt.RegisteredClaims{
+					Audience:  tt.tokenAudience,
+					ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+					IssuedAt:  jwt.NewNumericDate(time.Now()),
+				},
+				UserID: "test-user",
+			}
+
+			tokenString := createTestToken(t, claims, rsaKey, jwt.SigningMethodRS256)
+
+			_, err := validator.Validate(tokenString)
+
+			if tt.wantErr && err == nil {
+				t.Error("Validate() expected error for invalid audience")
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Errorf("Validate() unexpected error = %v", err)
+			}
+		})
+	}
+}
+
 func TestValidator_Validate_AllSigningMethods(t *testing.T) {
 	rsaKey := generateTestRSAKey(t)
 	ecdsaKey := generateTestECDSAKey(t)

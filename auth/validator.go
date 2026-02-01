@@ -78,9 +78,8 @@ func (v *Validator) Validate(tokenString string) (*Claims, error) {
 		parserOpts = append(parserOpts, jwt.WithIssuer(v.issuer))
 	}
 
-	if len(v.audience) > 0 {
-		parserOpts = append(parserOpts, jwt.WithAudience(v.audience[0]))
-	}
+	// Note: We handle audience validation manually after parsing to support
+	// any-of matching (token must contain at least one of the configured audiences).
 
 	// Parse the token.
 	claims := &Claims{}
@@ -96,7 +95,37 @@ func (v *Validator) Validate(tokenString string) (*Claims, error) {
 		return nil, errors.TokenInvalid("token is invalid")
 	}
 
+	// Validate audience (any-of matching): token must contain at least one configured audience.
+	if len(v.audience) > 0 {
+		if !v.validateAudience(claims) {
+			return nil, errors.TokenInvalid("token audience does not match any configured audience")
+		}
+	}
+
 	return claims, nil
+}
+
+// validateAudience checks if the token's audience contains at least one of the configured audiences.
+func (v *Validator) validateAudience(claims *Claims) bool {
+	tokenAudiences, err := claims.GetAudience()
+	if err != nil || len(tokenAudiences) == 0 {
+		return false
+	}
+
+	// Build a set of token audiences for O(1) lookup.
+	tokenAudSet := make(map[string]bool, len(tokenAudiences))
+	for _, aud := range tokenAudiences {
+		tokenAudSet[aud] = true
+	}
+
+	// Check if any configured audience is present in the token.
+	for _, configuredAud := range v.audience {
+		if tokenAudSet[configuredAud] {
+			return true
+		}
+	}
+
+	return false
 }
 
 // mapError maps JWT library errors to Txova errors.

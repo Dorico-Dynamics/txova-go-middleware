@@ -3,6 +3,7 @@ package rbac
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"strings"
 
@@ -275,6 +276,7 @@ func logAccessDenial(cfg *Config, r *http.Request, reason string) {
 }
 
 // getClientIP extracts the client IP address from the request.
+// Handles both IPv4 and IPv6 addresses correctly.
 func getClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		if idx := strings.Index(xff, ","); idx > 0 {
@@ -287,5 +289,17 @@ func getClientIP(r *http.Request) string {
 		return strings.TrimSpace(xri)
 	}
 
-	return r.RemoteAddr
+	// Use net.SplitHostPort to properly handle IPv4 and IPv6 addresses.
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		// If SplitHostPort fails (e.g., no port), return the address as-is.
+		// Trim brackets from bare IPv6 addresses like "[::1]".
+		addr := r.RemoteAddr
+		if strings.HasPrefix(addr, "[") && strings.HasSuffix(addr, "]") {
+			return addr[1 : len(addr)-1]
+		}
+		return addr
+	}
+
+	return host
 }
