@@ -4,6 +4,7 @@ go 1.25.6
 
 require (
 	github.com/Dorico-Dynamics/txova-go-core v1.0.0
+	github.com/go-chi/cors v1.2.2
 	github.com/google/uuid v1.6.0
 )
 

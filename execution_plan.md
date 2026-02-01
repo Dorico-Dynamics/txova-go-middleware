@@ -48,8 +48,8 @@ Implementation plan for the HTTP middleware library providing authentication, au
 | Phase 1: Foundation | Complete | `e36d9c5` | 100% |
 | Phase 2: Request ID & Recovery | Complete | `9e61504` | 98% |
 | Phase 3: Logging Middleware | Complete | `eea6aab` | 89% |
-| Phase 4: Timeout Middleware | Complete | - | 98% |
-| Phase 5: CORS Middleware | Pending | - | - |
+| Phase 4: Timeout Middleware | Complete | `4a91cff` | 98% |
+| Phase 5: CORS Middleware | Complete | - | 100% |
 | Phase 6: Authentication Middleware | Pending | - | - |
 | Phase 7: RBAC Middleware | Pending | - | - |
 | Phase 8: Rate Limiting Middleware | Pending | - | - |
@@ -216,36 +216,36 @@ Implementation plan for the HTTP middleware library providing authentication, au
 
 ---
 
-## Phase 5: CORS Middleware (`cors` package)
+## Phase 5: CORS Middleware (`mwcors` package)
 
 ### 5.1 CORS Configuration
-- [ ] Implement `Config` struct:
+- [x] Implement `Config` struct:
   - `AllowedOrigins []string` (default: empty - reject all)
-  - `AllowedMethods []string` (default: GET, POST, PUT, DELETE)
-  - `AllowedHeaders []string` (default: Content-Type, Authorization)
+  - `AllowedMethods []string` (default: GET, POST, PUT, DELETE, PATCH, OPTIONS)
+  - `AllowedHeaders []string` (default: Content-Type, Authorization, X-Request-ID)
   - `ExposedHeaders []string` (default: X-Request-ID)
   - `MaxAge int` (default: 86400 seconds)
   - `AllowCredentials bool` (default: true)
 
 ### 5.2 CORS Middleware
-- [ ] Implement `Middleware(cfg Config) func(http.Handler) http.Handler`
-- [ ] Wrap `github.com/go-chi/cors` with Txova configuration
-- [ ] Handle preflight OPTIONS requests
-- [ ] Validate origin against allowlist
-- [ ] Set appropriate CORS headers
+- [x] Implement `Middleware(cfg Config) func(http.Handler) http.Handler`
+- [x] Wrap `github.com/go-chi/cors` with Txova configuration
+- [x] Handle preflight OPTIONS requests
+- [x] Validate origin against allowlist
+- [x] Set appropriate CORS headers
 
 ### 5.3 Origin Validation
-- [ ] Support exact match origins
-- [ ] Support wildcard `*` (development only)
-- [ ] Log rejected origins at WARN level
+- [x] Support exact match origins
+- [x] Support wildcard `*` (development only)
+- [ ] Log rejected origins at WARN level (handled by go-chi/cors)
 
 ### 5.4 Tests
-- [ ] Test preflight OPTIONS handling
-- [ ] Test allowed origin passes
-- [ ] Test rejected origin blocked
-- [ ] Test credentials header
-- [ ] Test exposed headers
-- [ ] Test max age header
+- [x] Test preflight OPTIONS handling
+- [x] Test allowed origin passes
+- [x] Test rejected origin blocked
+- [x] Test credentials header
+- [x] Test exposed headers
+- [x] Test max age header
 
 ---
 
