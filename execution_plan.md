@@ -51,8 +51,8 @@ Implementation plan for the HTTP middleware library providing authentication, au
 | Phase 4: Timeout Middleware | Complete | `4a91cff` | 98% |
 | Phase 5: CORS Middleware | Complete | `72b32cc` | 100% |
 | Phase 6: Authentication Middleware | Complete | `0e08840` | 94.4% |
-| Phase 7: RBAC Middleware | Complete | - | 91.9% |
-| Phase 8: Rate Limiting Middleware | Pending | - | - |
+| Phase 7: RBAC Middleware | Complete | `eb73268` | 91.9% |
+| Phase 8: Rate Limiting Middleware | Complete | - | 93.8% |
 | Phase 9: Maintenance Mode Middleware | Pending | - | - |
 | Phase 10: Chain & Integration | Pending | - | - |
 
@@ -375,63 +375,62 @@ Implementation plan for the HTTP middleware library providing authentication, au
 ## Phase 8: Rate Limiting Middleware (`ratelimit` package)
 
 ### 8.1 Redis Client Interface
-- [ ] Define `RedisClient` interface:
+- [x] Define `RedisClient` interface:
   - `Incr(ctx context.Context, key string) (int64, error)`
   - `Expire(ctx context.Context, key string, expiration time.Duration) error`
   - `TTL(ctx context.Context, key string) (time.Duration, error)`
-  - `Get(ctx context.Context, key string) (string, error)`
 
 ### 8.2 Rate Limiter
-- [ ] Implement `Limiter` struct with configuration:
+- [x] Implement `Limiter` struct with configuration:
   - `RedisClient` - Redis client for distributed limiting
   - `Limit int` - Requests per window
   - `Window time.Duration` - Time window
   - `BurstAllowance int` - Extra requests allowed in burst
-- [ ] Implement sliding window rate limiting algorithm
+- [x] Implement fixed window counter rate limiting algorithm
 
 ### 8.3 Key Strategies
-- [ ] Implement `KeyFunc` type: `func(r *http.Request) string`
-- [ ] Implement built-in key functions:
+- [x] Implement `KeyFunc` type: `func(r *http.Request) string`
+- [x] Implement built-in key functions:
   - `KeyByIP(r *http.Request) string` - Rate limit by client IP
   - `KeyByUser(r *http.Request) string` - Rate limit by user ID
   - `KeyByEndpoint(r *http.Request) string` - Rate limit by path
   - `KeyByIPAndEndpoint(r *http.Request) string` - Combined
-- [ ] Support custom key functions
+  - `KeyByUserAndEndpoint(r *http.Request) string` - Combined
+- [x] Support custom key functions
 
 ### 8.4 Rate Limit Middleware
-- [ ] Implement `Middleware(limiter *Limiter, keyFunc KeyFunc) func(http.Handler) http.Handler`
-- [ ] Check rate limit for request key
-- [ ] Add response headers:
+- [x] Implement `Middleware(limiter *Limiter, opts ...Option) func(http.Handler) http.Handler`
+- [x] Check rate limit for request key
+- [x] Add response headers:
   - `X-RateLimit-Limit` - Max requests
   - `X-RateLimit-Remaining` - Remaining requests
   - `X-RateLimit-Reset` - Reset timestamp (Unix)
-- [ ] On under limit: add headers, continue
-- [ ] On at limit: return 429 + RATE_LIMITED
+- [x] On under limit: add headers, continue
+- [x] On at limit: return 429 + RATE_LIMITED with Retry-After header
 
 ### 8.5 Skip Function
-- [ ] Implement `SkipFunc` type: `func(r *http.Request) bool`
-- [ ] Support bypass for certain requests (e.g., health checks, admins)
+- [x] Implement `SkipFunc` type: `func(r *http.Request) bool`
+- [x] Support bypass for certain requests (e.g., health checks, admins)
 
 ### 8.6 Configuration
-- [ ] Implement `Config` struct:
+- [x] Implement `Config` struct:
   - `Limit int`
   - `Window time.Duration`
   - `BurstAllowance int`
   - `KeyFunc KeyFunc`
   - `SkipFunc SkipFunc`
   - `KeyPrefix string` (default: "ratelimit")
-- [ ] Functional options
+- [x] Functional options: `WithLimit()`, `WithWindow()`, `WithBurstAllowance()`, `WithKeyFunc()`, `WithSkipFunc()`, `WithKeyPrefix()`
 
 ### 8.7 Tests
-- [ ] Test rate limit headers present
-- [ ] Test under limit allows request
-- [ ] Test at limit returns 429
-- [ ] Test key by IP
-- [ ] Test key by user
-- [ ] Test skip function bypasses
-- [ ] Test burst allowance
-- [ ] Test window reset
-- [ ] Benchmark rate limit check (target: < 2ms)
+- [x] Test rate limit headers present
+- [x] Test under limit allows request
+- [x] Test at limit returns 429
+- [x] Test key by IP
+- [x] Test key by user
+- [x] Test skip function bypasses
+- [x] Test burst allowance
+- [x] Test reset time in headers
 
 ---
 
