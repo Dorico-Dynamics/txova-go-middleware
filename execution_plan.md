@@ -50,8 +50,8 @@ Implementation plan for the HTTP middleware library providing authentication, au
 | Phase 3: Logging Middleware | Complete | `eea6aab` | 89% |
 | Phase 4: Timeout Middleware | Complete | `4a91cff` | 98% |
 | Phase 5: CORS Middleware | Complete | `72b32cc` | 100% |
-| Phase 6: Authentication Middleware | Complete | - | 94.4% |
-| Phase 7: RBAC Middleware | Pending | - | - |
+| Phase 6: Authentication Middleware | Complete | `0e08840` | 94.4% |
+| Phase 7: RBAC Middleware | Complete | - | 91.9% |
 | Phase 8: Rate Limiting Middleware | Pending | - | - |
 | Phase 9: Maintenance Mode Middleware | Pending | - | - |
 | Phase 10: Chain & Integration | Pending | - | - |
@@ -322,53 +322,53 @@ Implementation plan for the HTTP middleware library providing authentication, au
 ## Phase 7: Optional Auth & RBAC (`auth`, `rbac` packages)
 
 ### 7.1 Optional Auth Middleware
-- [ ] Implement `OptionalMiddleware(validator *Validator) func(http.Handler) http.Handler`
-- [ ] Extract and validate token if present
-- [ ] On no token: continue without claims
-- [ ] On invalid token: continue without claims (don't error)
-- [ ] On valid token: inject claims into context
+- [x] Implement `OptionalMiddleware(validator *Validator) func(http.Handler) http.Handler`
+- [x] Extract and validate token if present
+- [x] On no token: continue without claims
+- [x] On invalid token: continue without claims (don't error)
+- [x] On valid token: inject claims into context
 
 ### 7.2 RBAC Middleware - Role Check
-- [ ] Implement `RequireRole(roles ...string) func(http.Handler) http.Handler`
-- [ ] Extract claims from context (requires auth middleware first)
-- [ ] Check if user has at least one of the specified roles
-- [ ] Return 403 + FORBIDDEN if missing required role
-- [ ] Log access denial
+- [x] Implement `RequireRole(roles ...string) func(http.Handler) http.Handler`
+- [x] Extract claims from context (requires auth middleware first)
+- [x] Check if user has at least one of the specified roles
+- [x] Return 403 + FORBIDDEN if missing required role
+- [x] Log access denial
 
 ### 7.3 RBAC Middleware - Permission Check
-- [ ] Implement `RequirePermission(permissions ...string) func(http.Handler) http.Handler`
-- [ ] Check if user has ALL specified permissions
-- [ ] Return 403 + FORBIDDEN if missing any permission
+- [x] Implement `RequirePermission(permissions ...string) func(http.Handler) http.Handler`
+- [x] Check if user has ALL specified permissions
+- [x] Return 403 + FORBIDDEN if missing any permission
 
 ### 7.4 RBAC Middleware - Owner Check
-- [ ] Implement `RequireOwner(paramName string) func(http.Handler) http.Handler`
-- [ ] Extract user ID from context
-- [ ] Extract resource owner ID from URL parameter
-- [ ] Compare and allow if match
-- [ ] Return 403 + FORBIDDEN if not owner
+- [x] Implement `RequireOwner(paramName string) func(http.Handler) http.Handler`
+- [x] Extract user ID from context
+- [x] Extract resource owner ID from URL parameter (via chi.URLParam)
+- [x] Compare and allow if match
+- [x] Return 403 + FORBIDDEN if not owner
 
 ### 7.5 RBAC Middleware - User Type Check
-- [ ] Implement `RequireUserType(types ...string) func(http.Handler) http.Handler`
-- [ ] Check if user type matches one of specified types
-- [ ] Return 403 + FORBIDDEN if wrong type
+- [x] Implement `RequireUserType(types ...string) func(http.Handler) http.Handler`
+- [x] Check if user type matches one of specified types
+- [x] Return 403 + FORBIDDEN if wrong type
 
 ### 7.6 Composite Checks
-- [ ] Implement `RequireRoleOrOwner(paramName string, roles ...string) func(http.Handler) http.Handler`
-- [ ] Allow if user has role OR is owner
+- [x] Implement `RequireRoleOrOwner(paramName string, roles ...string) func(http.Handler) http.Handler`
+- [x] Allow if user has role OR is owner
 
 ### 7.7 Tests
-- [ ] Test optional auth with no token → no claims, continues
-- [ ] Test optional auth with invalid token → no claims, continues
-- [ ] Test optional auth with valid token → claims in context
-- [ ] Test RequireRole with matching role → allowed
-- [ ] Test RequireRole with missing role → 403
-- [ ] Test RequirePermission with all perms → allowed
-- [ ] Test RequirePermission with missing perm → 403
-- [ ] Test RequireOwner with matching ID → allowed
-- [ ] Test RequireOwner with different ID → 403
-- [ ] Test RequireUserType with matching type → allowed
-- [ ] Test RequireUserType with wrong type → 403
-- [ ] Test RequireRoleOrOwner both conditions
+- [x] Test optional auth with no token → no claims, continues
+- [x] Test optional auth with invalid token → no claims, continues
+- [x] Test optional auth with valid token → claims in context
+- [x] Test RequireRole with matching role → allowed
+- [x] Test RequireRole with missing role → 403
+- [x] Test RequirePermission with all perms → allowed
+- [x] Test RequirePermission with missing perm → 403
+- [x] Test RequireOwner with matching ID → allowed
+- [x] Test RequireOwner with different ID → 403
+- [x] Test RequireUserType with matching type → allowed
+- [x] Test RequireUserType with wrong type → 403
+- [x] Test RequireRoleOrOwner both conditions
 
 ---
 
