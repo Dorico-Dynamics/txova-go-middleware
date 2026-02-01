@@ -273,5 +273,3 @@ This project uses GitHub Actions for:
 - **Releases** - Semantic versioning from conventional commits
 
 ## License
-
-Proprietary - Dorico Dynamics

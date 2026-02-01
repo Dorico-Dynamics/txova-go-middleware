@@ -386,60 +386,6 @@ func TestKeyByUser_FallbackToIP(t *testing.T) {
 	}
 }
 
-func TestGetClientIP_XForwardedFor(t *testing.T) {
-	tests := []struct {
-		name string
-		xff  string
-		want string
-	}{
-		{"single IP", "192.168.1.1", "192.168.1.1"},
-		{"multiple IPs", "192.168.1.1, 10.0.0.1, 172.16.0.1", "192.168.1.1"},
-		{"with spaces", "  192.168.1.1  ", "192.168.1.1"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
-			req.Header.Set("X-Forwarded-For", tt.xff)
-
-			got := getClientIP(req)
-			if got != tt.want {
-				t.Errorf("getClientIP() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGetClientIP_XRealIP(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
-	req.Header.Set("X-Real-IP", "10.0.0.1")
-
-	got := getClientIP(req)
-	if got != "10.0.0.1" {
-		t.Errorf("getClientIP() = %q, want %q", got, "10.0.0.1")
-	}
-}
-
-func TestGetClientIP_RemoteAddr(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
-	req.RemoteAddr = "172.16.0.1:12345"
-
-	got := getClientIP(req)
-	if got != "172.16.0.1" {
-		t.Errorf("getClientIP() = %q, want %q", got, "172.16.0.1")
-	}
-}
-
-func TestGetClientIP_RemoteAddrNoPort(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
-	req.RemoteAddr = "172.16.0.1"
-
-	got := getClientIP(req)
-	if got != "172.16.0.1" {
-		t.Errorf("getClientIP() = %q, want %q", got, "172.16.0.1")
-	}
-}
-
 func TestMiddleware_BurstAllowance(t *testing.T) {
 	client := newMockRedisClient()
 	limiter := NewLimiter(client, WithLimit(5), WithBurstAllowance(2))

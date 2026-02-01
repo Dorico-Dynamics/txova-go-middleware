@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Dorico-Dynamics/txova-go-core/errors"
@@ -295,7 +293,7 @@ func writeRateLimitError(w http.ResponseWriter, resetAt time.Time) {
 
 // KeyByIP returns a key function that rate limits by client IP address.
 func KeyByIP(r *http.Request) string {
-	return "ip:" + getClientIP(r)
+	return "ip:" + middleware.GetClientIP(r)
 }
 
 // KeyByUser returns a key function that rate limits by authenticated user ID.
@@ -303,7 +301,7 @@ func KeyByUser(r *http.Request) string {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok || userID == "" {
 		// Fall back to IP if user is not authenticated.
-		return "ip:" + getClientIP(r)
+		return "ip:" + middleware.GetClientIP(r)
 	}
 	return "user:" + userID
 }
@@ -315,43 +313,14 @@ func KeyByEndpoint(r *http.Request) string {
 
 // KeyByIPAndEndpoint returns a key function that rate limits by IP and path.
 func KeyByIPAndEndpoint(r *http.Request) string {
-	return "ip:" + getClientIP(r) + ":path:" + r.URL.Path
+	return "ip:" + middleware.GetClientIP(r) + ":path:" + r.URL.Path
 }
 
 // KeyByUserAndEndpoint returns a key function that rate limits by user and path.
 func KeyByUserAndEndpoint(r *http.Request) string {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok || userID == "" {
-		return "ip:" + getClientIP(r) + ":path:" + r.URL.Path
+		return "ip:" + middleware.GetClientIP(r) + ":path:" + r.URL.Path
 	}
 	return "user:" + userID + ":path:" + r.URL.Path
-}
-
-// getClientIP extracts the client IP address from the request.
-// Handles both IPv4 and IPv6 addresses correctly.
-func getClientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if idx := strings.Index(xff, ","); idx > 0 {
-			return strings.TrimSpace(xff[:idx])
-		}
-		return strings.TrimSpace(xff)
-	}
-
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
-	}
-
-	// Use net.SplitHostPort to properly handle IPv4 and IPv6 addresses.
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		// If SplitHostPort fails (e.g., no port), return the address as-is.
-		// Trim brackets from bare IPv6 addresses like "[::1]".
-		addr := r.RemoteAddr
-		if strings.HasPrefix(addr, "[") && strings.HasSuffix(addr, "]") {
-			return addr[1 : len(addr)-1]
-		}
-		return addr
-	}
-
-	return host
 }
