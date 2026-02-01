@@ -26,6 +26,14 @@ type RedisClient interface {
 	TTL(ctx context.Context, key string) (time.Duration, error)
 }
 
+// RedisClientWithEval extends RedisClient with Lua script support for atomic operations.
+// If the client implements this interface, atomic INCR+EXPIRE will be used.
+type RedisClientWithEval interface {
+	RedisClient
+	// Eval executes a Lua script with the given keys and args.
+	Eval(ctx context.Context, script string, keys []string, args ...any) (any, error)
+}
+
 // KeyFunc is a function type that extracts a rate limit key from a request.
 type KeyFunc func(r *http.Request) string
 
@@ -129,12 +137,32 @@ func NewLimiter(client RedisClient, opts ...Option) *Limiter {
 	}
 }
 
+// incrWithExpireScript is a Lua script that atomically increments a key and sets expiration.
+// Returns the new count. Sets expiration only on first increment (when count becomes 1).
+const incrWithExpireScript = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return count
+`
+
 // Check checks if a request should be rate limited.
 // Returns the current count, remaining requests, reset time, and whether the request is allowed.
 func (l *Limiter) Check(ctx context.Context, key string) (count int64, remaining int, resetAt time.Time, allowed bool) {
 	fullKey := fmt.Sprintf("%s:%s", l.keyPrefix, key)
 
-	// Increment the counter.
+	// Try to use atomic INCR+EXPIRE if client supports Eval.
+	if evalClient, ok := l.client.(RedisClientWithEval); ok {
+		atomicCount, err := l.checkAtomic(ctx, evalClient, fullKey)
+		if err != nil {
+			// On error, allow the request to avoid blocking traffic.
+			return 0, l.limit, time.Now().Add(l.window), true
+		}
+		return l.calculateResult(ctx, fullKey, atomicCount)
+	}
+
+	// Fallback to non-atomic approach for clients without Eval support.
 	count, err := l.client.Incr(ctx, fullKey)
 	if err != nil {
 		// On error, allow the request to avoid blocking traffic.
@@ -142,26 +170,53 @@ func (l *Limiter) Check(ctx context.Context, key string) (count int64, remaining
 	}
 
 	// Set expiration on first request.
+	// Note: This is non-atomic and may leave keys without TTL in edge cases.
 	if count == 1 {
 		// Ignore expiration errors - the key will still work, just may persist longer.
-		expireErr := l.client.Expire(ctx, fullKey, l.window)
-		_ = expireErr
+		//nolint:errcheck // Intentionally ignoring - see comment above
+		_ = l.client.Expire(ctx, fullKey, l.window)
 	}
 
+	return l.calculateResult(ctx, fullKey, count)
+}
+
+// checkAtomic performs an atomic increment with expiration using a Lua script.
+func (l *Limiter) checkAtomic(ctx context.Context, client RedisClientWithEval, fullKey string) (int64, error) {
+	windowSeconds := int64(l.window.Seconds())
+	result, err := client.Eval(ctx, incrWithExpireScript, []string{fullKey}, windowSeconds)
+	if err != nil {
+		return 0, err
+	}
+
+	// Handle different return types from Redis.
+	switch v := result.(type) {
+	case int64:
+		return v, nil
+	case int:
+		return int64(v), nil
+	case float64:
+		return int64(v), nil
+	default:
+		return 0, fmt.Errorf("unexpected result type from Lua script: %T", result)
+	}
+}
+
+// calculateResult computes the remaining requests and reset time.
+func (l *Limiter) calculateResult(ctx context.Context, fullKey string, count int64) (int64, int, time.Time, bool) {
 	// Get TTL for reset time.
 	ttl, err := l.client.TTL(ctx, fullKey)
 	if err != nil || ttl <= 0 {
 		ttl = l.window
 	}
-	resetAt = time.Now().Add(ttl)
+	resetAt := time.Now().Add(ttl)
 
 	// Calculate remaining.
-	remaining = l.limit - int(count)
+	remaining := l.limit - int(count)
 	if remaining < 0 {
 		remaining = 0
 	}
 
-	allowed = int(count) <= l.limit
+	allowed := int(count) <= l.limit
 
 	return count, remaining, resetAt, allowed
 }

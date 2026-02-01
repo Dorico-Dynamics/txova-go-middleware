@@ -29,9 +29,11 @@ package main
 
 import (
     "net/http"
+    "time"
 
     "github.com/go-chi/chi/v5"
     "github.com/Dorico-Dynamics/txova-go-core/logging"
+    middleware "github.com/Dorico-Dynamics/txova-go-middleware"
     "github.com/Dorico-Dynamics/txova-go-middleware/auth"
     "github.com/Dorico-Dynamics/txova-go-middleware/chain"
     "github.com/Dorico-Dynamics/txova-go-middleware/mwcors"
@@ -111,7 +113,12 @@ r.Use(requestid.Middleware(
 - Injects into context for downstream use
 
 **Extract in handlers:**
+
+Note: `RequestIDFromContext` is available from the root `middleware` package, not the `requestid` package. The `requestid` package provides the middleware itself, while context utilities are in the root package.
+
 ```go
+import middleware "github.com/Dorico-Dynamics/txova-go-middleware"
+
 func handler(w http.ResponseWriter, r *http.Request) {
     requestID := middleware.RequestIDFromContext(r.Context())
     logger.Info("processing request", "request_id", requestID)
