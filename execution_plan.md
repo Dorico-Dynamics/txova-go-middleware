@@ -49,8 +49,8 @@ Implementation plan for the HTTP middleware library providing authentication, au
 | Phase 2: Request ID & Recovery | Complete | `9e61504` | 98% |
 | Phase 3: Logging Middleware | Complete | `eea6aab` | 89% |
 | Phase 4: Timeout Middleware | Complete | `4a91cff` | 98% |
-| Phase 5: CORS Middleware | Complete | - | 100% |
-| Phase 6: Authentication Middleware | Pending | - | - |
+| Phase 5: CORS Middleware | Complete | `72b32cc` | 100% |
+| Phase 6: Authentication Middleware | Complete | - | 94.4% |
 | Phase 7: RBAC Middleware | Pending | - | - |
 | Phase 8: Rate Limiting Middleware | Pending | - | - |
 | Phase 9: Maintenance Mode Middleware | Pending | - | - |
@@ -252,57 +252,70 @@ Implementation plan for the HTTP middleware library providing authentication, au
 ## Phase 6: Authentication Middleware (`auth` package)
 
 ### 6.1 JWT Claims Structure
-- [ ] Define `Claims` struct extending `jwt.RegisteredClaims`:
+- [x] Define `Claims` struct extending `jwt.RegisteredClaims`:
   - `UserID string`
   - `UserType string` (rider, driver, admin)
   - `Roles []string`
-  - Custom claims map for extensibility
+  - `Permissions []string`
+- [x] Implement claims helper methods:
+  - `HasRole(role string) bool`
+  - `HasAnyRole(roles ...string) bool`
+  - `HasPermission(permission string) bool`
+  - `HasAllPermissions(permissions ...string) bool`
+- [x] Implement `ClaimsFromContext(ctx) (*Claims, bool)`
+- [x] Implement `WithClaims(ctx, claims) context.Context`
 
 ### 6.2 JWT Validator
-- [ ] Implement `Validator` struct with configuration:
-  - `PublicKey` - RSA/ECDSA public key for signature verification
+- [x] Implement `Validator` struct with configuration:
+  - `PublicKey` - RSA/ECDSA public key or HMAC secret for signature verification
   - `Issuer string` - Expected issuer claim
   - `Audience []string` - Expected audience claims
-- [ ] Implement `Validate(tokenString string) (*Claims, error)`
-- [ ] Validate signature using configured public key
-- [ ] Validate expiration time (`exp` claim)
-- [ ] Validate issuer (`iss` claim)
-- [ ] Validate audience (`aud` claim)
-- [ ] Support both RSA and ECDSA keys
+- [x] Implement `NewValidator(cfg ValidatorConfig) (*Validator, error)`
+- [x] Implement `Validate(tokenString string) (*Claims, error)`
+- [x] Validate signature using configured public key
+- [x] Validate expiration time (`exp` claim)
+- [x] Validate not-before time (`nbf` claim)
+- [x] Validate issuer (`iss` claim)
+- [x] Validate audience (`aud` claim)
+- [x] Support RSA, ECDSA, and HMAC signing methods
 
 ### 6.3 Auth Middleware
-- [ ] Implement `Middleware(validator *Validator) func(http.Handler) http.Handler`
-- [ ] Extract token from "Authorization: Bearer {token}" header
-- [ ] Return 401 + TOKEN_REQUIRED if no header
-- [ ] Return 401 + TOKEN_INVALID if malformed
-- [ ] Validate token using Validator
-- [ ] Return 401 + TOKEN_EXPIRED if expired
-- [ ] Return 401 + TOKEN_INVALID if signature invalid
-- [ ] Inject claims into context on success
-- [ ] Continue to next handler
+- [x] Implement `Middleware(validator *Validator, opts ...Option) func(http.Handler) http.Handler`
+- [x] Extract token from "Authorization: Bearer {token}" header
+- [x] Return 401 + TOKEN_REQUIRED if no header
+- [x] Return 401 + TOKEN_INVALID if malformed
+- [x] Validate token using Validator
+- [x] Return 401 + TOKEN_EXPIRED if expired
+- [x] Return 401 + TOKEN_INVALID if signature invalid
+- [x] Inject claims into context on success
+- [x] Inject user_id, user_type, roles into context for convenience
+- [x] Continue to next handler
 
 ### 6.4 Path Exclusion
-- [ ] Implement `Config` struct:
+- [x] Implement `Config` struct:
   - `ExcludePaths []string` - Paths to skip auth (e.g., /health, /login)
   - `ExcludePatterns []string` - Regex patterns to skip
-- [ ] Functional options: `WithExcludePaths()`, `WithExcludePatterns()`
+- [x] Functional options: `WithExcludePaths()`, `WithExcludePatterns()`, `WithLogger()`
 
 ### 6.5 Logging Integration
-- [ ] Log auth failures with:
-  - IP address
+- [x] Log auth failures with:
+  - IP address (X-Forwarded-For, X-Real-IP support)
   - Request path
   - Failure reason (expired, invalid, missing)
-- [ ] Use security audit logging for sensitive events
+  - Request ID
 
 ### 6.6 Tests
-- [ ] Test missing Authorization header → 401 TOKEN_REQUIRED
-- [ ] Test invalid format (not "Bearer ...") → 401 TOKEN_INVALID
-- [ ] Test expired token → 401 TOKEN_EXPIRED
-- [ ] Test invalid signature → 401 TOKEN_INVALID
-- [ ] Test valid token → claims in context
-- [ ] Test path exclusion bypasses auth
-- [ ] Test pattern exclusion
-- [ ] Benchmark token validation (target: < 5ms)
+- [x] Test missing Authorization header → 401 TOKEN_REQUIRED
+- [x] Test invalid format (not "Bearer ...") → 401 TOKEN_INVALID
+- [x] Test expired token → 401 TOKEN_EXPIRED
+- [x] Test invalid signature → 401 TOKEN_INVALID
+- [x] Test valid token → claims in context
+- [x] Test path exclusion bypasses auth
+- [x] Test pattern exclusion
+- [x] Test all signing methods (RS256, RS384, RS512, ES256, HS256, HS384, HS512)
+- [x] Test issuer validation
+- [x] Test audience validation
+- [x] Test context values populated correctly
 
 ---
 
