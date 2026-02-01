@@ -46,8 +46,8 @@ Implementation plan for the HTTP middleware library providing authentication, au
 | Phase | Status | Commit | Coverage |
 |-------|--------|--------|----------|
 | Phase 1: Foundation | Complete | `e36d9c5` | 100% |
-| Phase 2: Request ID & Recovery | Complete | - | 98% |
-| Phase 3: Logging Middleware | Pending | - | - |
+| Phase 2: Request ID & Recovery | Complete | `9e61504` | 98% |
+| Phase 3: Logging Middleware | Complete | - | 89% |
 | Phase 4: Timeout Middleware | Pending | - | - |
 | Phase 5: CORS Middleware | Pending | - | - |
 | Phase 6: Authentication Middleware | Pending | - | - |
@@ -140,12 +140,12 @@ Implementation plan for the HTTP middleware library providing authentication, au
 
 ---
 
-## Phase 3: Logging Middleware (`logging` package)
+## Phase 3: Logging Middleware (`mwlog` package)
 
 ### 3.1 Request Logging
-- [ ] Implement `Middleware(logger *logging.Logger) func(http.Handler) http.Handler`
-- [ ] Wrap `http.ResponseWriter` to capture status code and bytes written
-- [ ] Log at request completion with fields:
+- [x] Implement `Middleware(logger *logging.Logger) func(http.Handler) http.Handler`
+- [x] Wrap `http.ResponseWriter` to capture status code and bytes written
+- [x] Log at request completion with fields:
   - `method` - HTTP method
   - `path` - Request path (without query params)
   - `status` - Response status code
@@ -158,33 +158,33 @@ Implementation plan for the HTTP middleware library providing authentication, au
   - `bytes_out` - Response body size
 
 ### 3.2 Log Level Selection
-- [ ] Implement log level based on status:
+- [x] Implement log level based on status:
   - 2xx → INFO
   - 4xx → WARN
   - 5xx → ERROR
-- [ ] Include stack trace for 5xx errors
+- [ ] Include stack trace for 5xx errors (handled by recovery middleware)
 
 ### 3.3 Configuration
-- [ ] Implement `Config` struct:
+- [x] Implement `Config` struct:
   - `ExcludePaths []string` - Paths to skip (e.g., /health, /ready)
   - `MaskQueryParams []string` - Params to mask (token, key, secret)
   - `SlowRequestThreshold time.Duration` - Log slow requests at WARN
-- [ ] Functional options: `WithExcludePaths()`, `WithMaskQueryParams()`
+- [x] Functional options: `WithExcludePaths()`, `WithMaskQueryParams()`
 
 ### 3.4 Response Writer Wrapper
-- [ ] Implement `responseWriter` struct wrapping `http.ResponseWriter`
-- [ ] Capture status code (default 200 if not set)
-- [ ] Count bytes written
-- [ ] Support `http.Flusher`, `http.Hijacker`, `http.Pusher` interfaces
+- [x] Implement `responseWriter` struct wrapping `http.ResponseWriter`
+- [x] Capture status code (default 200 if not set)
+- [x] Count bytes written
+- [x] Support `http.Flusher`, `http.Hijacker`, `http.Pusher` interfaces
 
 ### 3.5 Tests
-- [ ] Test log fields are populated correctly
-- [ ] Test log levels based on status codes
-- [ ] Test path exclusion
-- [ ] Test query param masking
-- [ ] Test response writer wrapper captures status
-- [ ] Test slow request warning
-- [ ] Test interface support (Flusher, Hijacker)
+- [x] Test log fields are populated correctly
+- [x] Test log levels based on status codes
+- [x] Test path exclusion
+- [x] Test query param masking
+- [x] Test response writer wrapper captures status
+- [x] Test slow request warning
+- [x] Test interface support (Flusher, Hijacker)
 
 ---
 
