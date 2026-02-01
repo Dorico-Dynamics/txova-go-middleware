@@ -52,8 +52,8 @@ Implementation plan for the HTTP middleware library providing authentication, au
 | Phase 5: CORS Middleware | Complete | `72b32cc` | 100% |
 | Phase 6: Authentication Middleware | Complete | `0e08840` | 94.4% |
 | Phase 7: RBAC Middleware | Complete | `eb73268` | 91.9% |
-| Phase 8: Rate Limiting Middleware | Complete | - | 93.8% |
-| Phase 9: Maintenance Mode Middleware | Pending | - | - |
+| Phase 8: Rate Limiting Middleware | Complete | `06db4c7` | 93.8% |
+| Phase 9: Maintenance Mode Middleware | Complete | - | 98.3% |
 | Phase 10: Chain & Integration | Pending | - | - |
 
 **Current Branch:** `week1`
@@ -437,39 +437,42 @@ Implementation plan for the HTTP middleware library providing authentication, au
 ## Phase 9: Maintenance Mode Middleware (`maintenance` package)
 
 ### 9.1 Redis Flag Interface
-- [ ] Define `FlagStore` interface:
+- [x] Define `FlagStore` interface:
   - `IsEnabled(ctx context.Context) (bool, error)`
   - `GetMessage(ctx context.Context) (string, error)`
   - `GetEndTime(ctx context.Context) (*time.Time, error)`
 
 ### 9.2 Maintenance Middleware
-- [ ] Implement `Middleware(store FlagStore, cfg Config) func(http.Handler) http.Handler`
-- [ ] Check Redis flag for maintenance status
-- [ ] If maintenance disabled: continue
-- [ ] If bypass IP: continue
-- [ ] If bypass path (e.g., /health): continue
-- [ ] Otherwise: return 503 + SERVICE_UNAVAILABLE
+- [x] Implement `Middleware(store FlagStore, opts ...Option) func(http.Handler) http.Handler`
+- [x] Check store for maintenance status
+- [x] If maintenance disabled: continue
+- [x] If bypass IP: continue
+- [x] If bypass path (e.g., /health, /ready): continue
+- [x] Otherwise: return 503 + SERVICE_UNAVAILABLE
+- [x] On store error: allow request through (fail open)
 
 ### 9.3 Configuration
-- [ ] Implement `Config` struct:
+- [x] Implement `Config` struct:
   - `BypassIPs []string` - IPs that bypass maintenance
-  - `BypassPaths []string` - Paths that bypass (always include /health)
-  - `DefaultMessage string` - Message when none in Redis
-- [ ] Functional options
+  - `BypassPaths []string` - Paths that bypass (always include /health, /ready)
+  - `DefaultMessage string` - Message when none in store
+- [x] Functional options: `WithBypassIPs()`, `WithBypassPaths()`, `WithDefaultMessage()`
 
 ### 9.4 Response Format
-- [ ] Include in response:
+- [x] Include in response:
   - Error code: SERVICE_UNAVAILABLE
   - Message: Custom or default
   - Expected end time (if available)
+- [x] Set Retry-After header (300 seconds)
 
 ### 9.5 Tests
-- [ ] Test maintenance off → continues
-- [ ] Test maintenance on → 503
-- [ ] Test bypass IP → continues
-- [ ] Test bypass path → continues
-- [ ] Test custom message returned
-- [ ] Test expected end time included
+- [x] Test maintenance off → continues
+- [x] Test maintenance on → 503
+- [x] Test bypass IP → continues
+- [x] Test bypass path → continues
+- [x] Test custom message returned
+- [x] Test expected end time included
+- [x] Test store error → fails open
 
 ---
 
