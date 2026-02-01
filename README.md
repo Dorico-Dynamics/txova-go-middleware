@@ -4,168 +4,243 @@ HTTP middleware library providing authentication, authorization, rate limiting, 
 
 ## Overview
 
-`txova-go-middleware` provides a comprehensive set of HTTP middleware components for Txova services, including JWT authentication, RBAC authorization, distributed rate limiting, request logging, and panic recovery.
+`txova-go-middleware` provides a comprehensive set of HTTP middleware components for Txova platform services. Built for the Chi router, it offers JWT authentication, RBAC authorization, distributed rate limiting, structured logging, panic recovery, and more.
 
-**Module:** `github.com/txova/txova-go-middleware`
+**Module:** `github.com/Dorico-Dynamics/txova-go-middleware`
 
 ## Features
 
-- **Authentication** - JWT token validation with claims injection
-- **Authorization** - Role-based and permission-based access control
-- **Rate Limiting** - Redis-backed distributed rate limiting
-- **Request Logging** - Structured request/response logging
+- **Authentication** - JWT token validation with RSA, ECDSA, and HMAC support
+- **Authorization** - Role-based and permission-based access control (RBAC)
+- **Rate Limiting** - Redis-backed distributed rate limiting with multiple key strategies
+- **Request Logging** - Structured request/response logging with PII masking
 - **Panic Recovery** - Graceful panic handling with stack traces
-- **Request ID** - Correlation ID injection and propagation
+- **Request ID** - Correlation ID generation and propagation
 - **CORS** - Configurable cross-origin resource sharing
-- **Timeout** - Request timeout enforcement
+- **Timeout** - Request timeout enforcement with context cancellation
+- **Maintenance Mode** - Service maintenance with bypass rules
+- **Middleware Chaining** - Composable middleware groups
 
 ## Packages
 
 | Package | Description |
 |---------|-------------|
-| `auth` | JWT authentication middleware |
-| `rbac` | Role-based access control |
-| `ratelimit` | Distributed rate limiting |
-| `logging` | Request logging |
-| `recovery` | Panic recovery |
-| `requestid` | Request ID handling |
-| `cors` | CORS configuration |
-| `timeout` | Request timeout |
-| `maintenance` | Maintenance mode |
+| `auth` | JWT authentication with claims extraction |
+| `rbac` | Role, permission, and ownership authorization |
+| `ratelimit` | Redis-backed distributed rate limiting |
+| `mwlog` | Structured HTTP request logging |
+| `recovery` | Panic recovery with stack traces |
+| `requestid` | Request ID generation and propagation |
+| `mwcors` | CORS configuration and handling |
+| `timeout` | Request timeout enforcement |
+| `maintenance` | Maintenance mode with bypass rules |
+| `chain` | Middleware composition utilities |
 
 ## Installation
 
 ```bash
-go get github.com/txova/txova-go-middleware
+go get github.com/Dorico-Dynamics/txova-go-middleware
 ```
 
-## Usage
+## Quick Start
+
+```go
+package main
+
+import (
+    "net/http"
+    "time"
+
+    "github.com/go-chi/chi/v5"
+    "github.com/Dorico-Dynamics/txova-go-core/logging"
+    "github.com/Dorico-Dynamics/txova-go-middleware/auth"
+    "github.com/Dorico-Dynamics/txova-go-middleware/mwcors"
+    "github.com/Dorico-Dynamics/txova-go-middleware/mwlog"
+    "github.com/Dorico-Dynamics/txova-go-middleware/rbac"
+    "github.com/Dorico-Dynamics/txova-go-middleware/recovery"
+    "github.com/Dorico-Dynamics/txova-go-middleware/requestid"
+    "github.com/Dorico-Dynamics/txova-go-middleware/timeout"
+)
+
+func main() {
+    logger := logging.New()
+    
+    validator, _ := auth.NewValidator(auth.ValidatorConfig{
+        PublicKey: rsaPublicKey,
+        Issuer:    "txova-auth",
+    })
+
+    r := chi.NewRouter()
+    
+    // Middleware stack (order matters!)
+    r.Use(requestid.Middleware())
+    r.Use(recovery.Middleware(logger))
+    r.Use(mwlog.Middleware(logger))
+    r.Use(mwcors.Middleware(mwcors.WithAllowedOrigins("https://app.txova.com")))
+    r.Use(timeout.Middleware(timeout.WithTimeout(30 * time.Second)))
+    r.Use(auth.Middleware(validator, auth.WithExcludePaths("/health")))
+
+    // Public routes
+    r.Get("/health", healthHandler)
+
+    // Protected routes
+    r.Get("/api/profile", profileHandler)
+    
+    // Admin routes
+    r.With(rbac.RequireRole("admin")).Get("/admin/users", adminHandler)
+
+    http.ListenAndServe(":8080", r)
+}
+```
+
+## Usage Examples
 
 ### Authentication
 
 ```go
-import "github.com/txova/txova-go-middleware/auth"
+// Create validator
+validator, err := auth.NewValidator(auth.ValidatorConfig{
+    PublicKey: rsaPublicKey,
+    Issuer:    "txova-auth",
+    Audience:  []string{"api"},
+})
 
-r := chi.NewRouter()
-r.Use(auth.Middleware(auth.Config{
-    PublicKey: publicKey,
-    Exclude:   []string{"/health", "/public/*"},
-}))
+// Required authentication
+r.Use(auth.Middleware(validator,
+    auth.WithExcludePaths("/health", "/public"),
+    auth.WithExcludePatterns(`^/api/v\d+/public/.*`),
+))
+
+// Optional authentication (allows unauthenticated)
+r.Use(auth.OptionalMiddleware(validator))
 
 // Access claims in handler
 func handler(w http.ResponseWriter, r *http.Request) {
-    userID := auth.GetUserID(r.Context())
-    userType := auth.GetUserType(r.Context())
+    claims, ok := auth.ClaimsFromContext(r.Context())
+    if ok {
+        userID := claims.UserID
+        if claims.HasRole("admin") {
+            // Admin logic
+        }
+    }
 }
 ```
 
 ### Role-Based Access Control
 
 ```go
-import "github.com/txova/txova-go-middleware/rbac"
-
-// Require specific role
-r.With(rbac.RequireRole("admin", "support")).Get("/admin/users", handler)
+// Require role
+r.With(rbac.RequireRole("admin")).Get("/admin", adminHandler)
 
 // Require permission
-r.With(rbac.RequirePermission("users:read")).Get("/users", handler)
-
-// Require resource owner
-r.With(rbac.RequireOwner("user_id")).Put("/users/{user_id}", handler)
+r.With(rbac.RequirePermission("users:write")).Post("/users", createUser)
 
 // Require user type
-r.With(rbac.RequireUserType("driver")).Get("/driver/earnings", handler)
+r.With(rbac.RequireUserType("driver")).Get("/driver/earnings", earnings)
+
+// Require ownership (URL param must match user ID)
+r.With(rbac.RequireOwner("userID")).Get("/users/{userID}", getUser)
+
+// Admin OR owner
+r.With(rbac.RequireRoleOrOwner("userID", "admin")).Delete("/users/{userID}", deleteUser)
 ```
 
 ### Rate Limiting
 
 ```go
-import "github.com/txova/txova-go-middleware/ratelimit"
+limiter := ratelimit.NewLimiter(redisClient,
+    ratelimit.WithLimit(100),
+    ratelimit.WithWindow(time.Minute),
+    ratelimit.WithBurstAllowance(10),
+)
 
-limiter := ratelimit.New(ratelimit.Config{
-    Redis:  redisClient,
-    Limit:  100,
-    Window: time.Minute,
-    KeyFunc: ratelimit.ByUser,
-})
+// Rate limit by IP
+r.Use(ratelimit.Middleware(limiter,
+    ratelimit.WithKeyFunc(ratelimit.KeyByIP),
+))
 
-r.Use(limiter.Middleware())
-
-// Response headers:
-// X-RateLimit-Limit: 100
-// X-RateLimit-Remaining: 95
-// X-RateLimit-Reset: 1609459200
+// Rate limit by user
+r.Use(ratelimit.Middleware(limiter,
+    ratelimit.WithKeyFunc(ratelimit.KeyByUser),
+))
 ```
 
 ### Request Logging
 
 ```go
-import "github.com/txova/txova-go-middleware/logging"
-
-r.Use(logging.Middleware(logging.Config{
-    Logger:      logger,
-    ExcludePaths: []string{"/health"},
-    MaskParams:  []string{"token", "password"},
-}))
-
-// Logs: method, path, status, duration_ms, request_id, user_id, ip
+r.Use(mwlog.Middleware(logger,
+    mwlog.WithExcludePaths("/health", "/metrics"),
+    mwlog.WithMaskQueryParams("token", "api_key"),
+    mwlog.WithSlowRequestThreshold(500 * time.Millisecond),
+))
 ```
 
-### Recommended Middleware Chain
+### Middleware Chaining
 
 ```go
-r := chi.NewRouter()
+import "github.com/Dorico-Dynamics/txova-go-middleware/chain"
 
-// Order matters!
-r.Use(recovery.Middleware())      // 1. Catch panics
-r.Use(requestid.Middleware())     // 2. Inject correlation ID
-r.Use(logging.Middleware(cfg))    // 3. Log all requests
-r.Use(timeout.Middleware(30*time.Second)) // 4. Enforce limits
-r.Use(cors.Middleware(corsConfig))        // 5. Handle preflight
-r.Use(maintenance.Middleware(mConfig))    // 6. Block if needed
-r.Use(ratelimit.Middleware(rlConfig))     // 7. Throttle abuse
-r.Use(auth.Middleware(authConfig))        // 8. Verify identity
+// Create reusable groups
+baseGroup := chain.NewGroup(
+    requestid.Middleware(),
+    recovery.Middleware(logger),
+)
+
+authGroup := baseGroup.Extend(auth.Middleware(validator))
+adminGroup := authGroup.Extend(rbac.RequireRole("admin"))
+
+r.Handle("/api/profile", authGroup.Then(profileHandler))
+r.Handle("/admin/users", adminGroup.Then(adminHandler))
 ```
 
-### Panic Recovery
+## Context Utilities
 
 ```go
-import "github.com/txova/txova-go-middleware/recovery"
+import middleware "github.com/Dorico-Dynamics/txova-go-middleware"
 
-r.Use(recovery.Middleware())
-
-// On panic:
-// - Logs full stack trace
-// - Returns 500 with generic error
-// - Never exposes panic details to client
+// Extract values set by middleware
+userID, ok := middleware.UserIDFromContext(ctx)
+userType, ok := middleware.UserTypeFromContext(ctx)
+roles, ok := middleware.RolesFromContext(ctx)
+requestID := middleware.RequestIDFromContext(ctx)
 ```
 
-### Request Timeout
+## Recommended Middleware Order
 
 ```go
-import "github.com/txova/txova-go-middleware/timeout"
-
-r.Use(timeout.Middleware(timeout.Config{
-    Timeout:   30 * time.Second,
-    SkipPaths: []string{"/upload"},
-}))
+r.Use(requestid.Middleware())      // 1. Correlation ID
+r.Use(recovery.Middleware(logger)) // 2. Catch panics
+r.Use(mwlog.Middleware(logger))    // 3. Log requests
+r.Use(mwcors.Middleware(...))      // 4. Handle CORS
+r.Use(timeout.Middleware(...))     // 5. Enforce timeout
+r.Use(maintenance.Middleware(...)) // 6. Block if maintenance
+r.Use(ratelimit.Middleware(...))   // 7. Throttle abuse
+r.Use(auth.Middleware(...))        // 8. Verify identity
+// RBAC middleware on specific routes
 ```
+
+## Documentation
+
+See [USAGE.md](USAGE.md) for comprehensive documentation with detailed examples.
 
 ## Dependencies
 
-**Internal:**
-- `txova-go-core`
-- `txova-go-security`
+### Internal
+- `github.com/Dorico-Dynamics/txova-go-core` - Errors and logging
+- `github.com/Dorico-Dynamics/txova-go-security` - Audit logging
 
-**External:**
-- `github.com/go-chi/chi/v5` - Router
+### External
+- `github.com/go-chi/chi/v5` - HTTP router
 - `github.com/go-chi/cors` - CORS handling
+- `github.com/golang-jwt/jwt/v5` - JWT parsing
+- `github.com/google/uuid` - UUID generation
 
 ## Development
 
 ### Requirements
 
 - Go 1.25+
+- Redis (for rate limiting tests)
 
 ### Testing
 
@@ -173,9 +248,29 @@ r.Use(timeout.Middleware(timeout.Config{
 go test ./...
 ```
 
-### Test Coverage Target
+### Linting
 
-> 85%
+```bash
+golangci-lint run ./...
+```
+
+### Test Coverage
+
+Target: **85%**
+
+```bash
+go test ./... -cover
+```
+
+## CI/CD
+
+This project uses GitHub Actions for:
+- **Testing** - Unit tests with race detection
+- **Coverage** - Enforced 85% minimum
+- **Linting** - golangci-lint, staticcheck, go vet
+- **Security** - gosec scanning
+- **SonarQube** - Code quality analysis
+- **Releases** - Semantic versioning from conventional commits
 
 ## License
 
