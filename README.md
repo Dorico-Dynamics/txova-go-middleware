@@ -273,8 +273,3 @@ This project uses GitHub Actions for:
 - **Releases** - Semantic versioning from conventional commits
 
 ## License
-
-Proprietary - Dorico Dynamics
-curl -s -u "squ_43c29ba4b4e07f3243572650b79eff125826e32f:" \
-  "https://sonarqube.doricod.com/api/issues/search?componentKeys=txova-go-middleware&ps=500" \
-  -o sonar-issues.json
