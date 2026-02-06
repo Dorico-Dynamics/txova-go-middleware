@@ -15,7 +15,7 @@ import (
 
 // Config holds configuration for the authentication middleware.
 type Config struct {
-	// Validator is the JWT validator.
+	// Validator is the token validator.
 	Validator TokenValidator
 
 	// Logger for logging authentication events (optional).
