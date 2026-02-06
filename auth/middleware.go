@@ -15,8 +15,8 @@ import (
 
 // Config holds configuration for the authentication middleware.
 type Config struct {
-	// Validator is the JWT validator.
-	Validator *Validator
+	// Validator is the token validator.
+	Validator TokenValidator
 
 	// Logger for logging authentication events (optional).
 	Logger *logging.Logger
@@ -67,7 +67,7 @@ func WithExcludePatterns(patterns ...string) Option {
 // Middleware returns an HTTP middleware that enforces JWT authentication.
 // Requests without a valid token receive a 401 Unauthorized response.
 // If validator is nil, returns a middleware that responds with HTTP 500 for all requests.
-func Middleware(validator *Validator, opts ...Option) func(http.Handler) http.Handler {
+func Middleware(validator TokenValidator, opts ...Option) func(http.Handler) http.Handler {
 	cfg := Config{
 		Validator: validator,
 	}
@@ -127,7 +127,7 @@ func Middleware(validator *Validator, opts ...Option) func(http.Handler) http.Ha
 			}
 
 			// Validate the token.
-			claims, validateErr := cfg.Validator.Validate(tokenString)
+			claims, validateErr := cfg.Validator.ValidateToken(r.Context(), tokenString)
 			if validateErr != nil {
 				logAuthFailure(cfg.Logger, cfg.AuditLogger, r, validateErr.Error())
 				writeError(w, validateErr)

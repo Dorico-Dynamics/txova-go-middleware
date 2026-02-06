@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	stderrors "errors"
@@ -10,6 +11,13 @@ import (
 
 	"github.com/Dorico-Dynamics/txova-go-core/errors"
 )
+
+// TokenValidator is an interface for token validation.
+// Implementations can add additional checks beyond JWT signature/expiry
+// (e.g., token blacklist, session validity).
+type TokenValidator interface {
+	ValidateToken(ctx context.Context, tokenString string) (*Claims, error)
+}
 
 // Validator validates JWT tokens.
 type Validator struct {
@@ -103,6 +111,11 @@ func (v *Validator) Validate(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+// ValidateToken implements TokenValidator using stateless JWT validation.
+func (v *Validator) ValidateToken(_ context.Context, tokenString string) (*Claims, error) {
+	return v.Validate(tokenString)
 }
 
 // validateAudience checks if the token's audience contains at least one of the configured audiences.
