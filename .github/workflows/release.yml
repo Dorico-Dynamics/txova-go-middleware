@@ -1,7 +1,10 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Test"]
+    types:
+      - completed
     branches:
       - main
 
@@ -9,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-main
   cancel-in-progress: false
 
 env:
@@ -19,6 +22,7 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
     outputs:
       version: ${{ steps.version.outputs.version }}
       released: ${{ steps.version.outputs.released }}
@@ -26,6 +30,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
       - name: Calculate next version
@@ -86,6 +91,14 @@ jobs:
 
           NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
           echo "New version: $NEW_VERSION"
+
+          # Guard against tag collision
+          if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
+            echo "::warning::Tag $NEW_VERSION already exists, skipping release"
+            echo "released=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "released=true" >> $GITHUB_OUTPUT
 
