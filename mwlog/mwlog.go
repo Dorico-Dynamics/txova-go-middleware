@@ -154,7 +154,7 @@ func Middleware(logger *logging.Logger, opts ...Option) func(http.Handler) http.
 				"duration_ms", duration.Milliseconds(),
 				"request_id", requestID,
 				"user_id", userID,
-				"ip", getClientIP(r),
+				"ip", middleware.GetClientIP(r),
 				"user_agent", r.UserAgent(),
 				"bytes_in", r.ContentLength,
 				"bytes_out", rw.bytesWritten,
@@ -180,31 +180,6 @@ func Middleware(logger *logging.Logger, opts ...Option) func(http.Handler) http.
 			}
 		})
 	}
-}
-
-// getClientIP extracts the client IP address from the request.
-// It checks X-Forwarded-For and X-Real-IP headers before falling back to RemoteAddr.
-func getClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header (may contain multiple IPs).
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// Take the first IP (original client).
-		if idx := strings.Index(xff, ","); idx > 0 {
-			return strings.TrimSpace(xff[:idx])
-		}
-		return strings.TrimSpace(xff)
-	}
-
-	// Check X-Real-IP header.
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
-	}
-
-	// Fall back to RemoteAddr.
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return ip
 }
 
 // maskQueryParams masks sensitive query parameter values.

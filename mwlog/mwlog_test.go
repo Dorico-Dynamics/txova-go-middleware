@@ -430,7 +430,7 @@ func TestMaskQueryParams(t *testing.T) {
 	}
 }
 
-func TestGetClientIP(t *testing.T) {
+func TestMiddlewareUsesSharedGetClientIP(t *testing.T) {
 	tests := []struct {
 		name       string
 		headers    map[string]string
@@ -471,9 +471,9 @@ func TestGetClientIP(t *testing.T) {
 				req.Header.Set(k, v)
 			}
 
-			got := getClientIP(req)
+			got := middleware.GetClientIP(req)
 			if got != tt.wantIP {
-				t.Errorf("getClientIP() = %q, want %q", got, tt.wantIP)
+				t.Errorf("GetClientIP() = %q, want %q", got, tt.wantIP)
 			}
 		})
 	}
