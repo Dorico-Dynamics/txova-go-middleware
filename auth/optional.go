@@ -11,7 +11,7 @@ import (
 // but continues even if no token is present or the token is invalid.
 // If a valid token is present, claims are injected into the context.
 // If no token or invalid token, the request continues without claims.
-func OptionalMiddleware(validator *Validator, opts ...Option) func(http.Handler) http.Handler {
+func OptionalMiddleware(validator TokenValidator, opts ...Option) func(http.Handler) http.Handler {
 	cfg := Config{
 		Validator: validator,
 	}
@@ -46,7 +46,7 @@ func OptionalMiddleware(validator *Validator, opts ...Option) func(http.Handler)
 			}
 
 			// Attempt to validate the token.
-			claims, err := cfg.Validator.Validate(tokenString)
+			claims, err := cfg.Validator.ValidateToken(r.Context(), tokenString)
 			if err != nil {
 				// Invalid token, continue without claims.
 				next.ServeHTTP(w, r)

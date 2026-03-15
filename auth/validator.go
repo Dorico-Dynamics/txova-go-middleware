@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	stderrors "errors"
@@ -10,6 +11,11 @@ import (
 
 	"github.com/Dorico-Dynamics/txova-go-core/errors"
 )
+
+// TokenValidator defines the JWT validation contract used by middleware.
+type TokenValidator interface {
+	ValidateToken(ctx context.Context, tokenString string) (*Claims, error)
+}
 
 // Validator validates JWT tokens.
 type Validator struct {
@@ -103,6 +109,11 @@ func (v *Validator) Validate(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+// ValidateToken adapts Validator to the middleware TokenValidator interface.
+func (v *Validator) ValidateToken(ctx context.Context, tokenString string) (*Claims, error) {
+	return v.Validate(tokenString)
 }
 
 // validateAudience checks if the token's audience contains at least one of the configured audiences.
